@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"log"
 	"math/rand"
 	"net/http"
+	"strconv"
 )
 
 type state struct {
@@ -52,11 +53,40 @@ func newGameHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	} else {
-		fmt.Printf("GET working %d\n", rand.Intn(20-1)+1)
 		w.WriteHeader(http.StatusOK) //200
 		w.Header().Set("Content-Type", "application/text")
-		fmt.Printf("w value: %s\n", r.URL.Query().Get("w"))
-		w.Write([]byte(r.URL.Query().Get("w")))
+
+		//send random fruit position as JSON marshalled data back to frontend
+		// string to int
+		reqWidth, err := strconv.Atoi(r.URL.Query().Get("w"))
+		if err != nil {
+			// ... handle error
+			panic(err)
+		}
+		reqHeight, err := strconv.Atoi(r.URL.Query().Get("h"))
+		if err != nil {
+			// ... handle error
+			panic(err)
+		}
+
+		//initialized state for new game
+		var s state = state{
+			GameID: "001",
+			Width:  reqWidth,
+			Height: reqHeight,
+			Score:  0,
+			Fruit:  randFruitPosition(reqWidth, reqHeight), //randomized fruit position
+			Snake: snake{
+				X:    0,
+				Y:    0,
+				VelX: 1,
+				VelY: 0,
+			},
+		}
+
+		state_marshalled, err := json.Marshal(s)
+		w.Write(state_marshalled)
+
 	}
 }
 

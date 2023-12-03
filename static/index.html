@@ -57,7 +57,7 @@
         y: 0,
 
         // snake velocity. moves one grid length every frame in either the x or y direction
-        dx: grid,
+        dx: 0,
         dy: 0,
 
         // keep track of all grids the snake body occupies
@@ -86,10 +86,24 @@
               w: canvas.width,
               h: canvas.height,
           }))
-          .then(response => 
-            response.text()
-            )
-          .then(text => console.log(text))
+          .then(response => response.json())
+          .then(json => {
+            console.log(json)
+
+            //initializing the game with the server sent data
+            //snake
+            snake.X = json.snake.x
+            snake.Y = json.snake.y
+            snake.dx = grid * json.snake.velX
+            snake.dy = grid * json.snake.velY
+            //apple
+            if (json.fruit.x % grid == 0){apple.x = grid * 2;}
+            else {apple.x = (json.fruit.x % grid) * grid }
+
+            if (json.fruit.y % grid == 0){apple.y = grid * 2;}
+            else {apple.y = (json.fruit.y % grid) * grid}
+
+          })
           .catch(error => console.error(error));
         }
         
@@ -99,13 +113,6 @@
           start = false;
           snake.x = 0;
           snake.y = 0;
-          snake.cells = [];
-          snake.maxCells = 1;
-          snake.dx = grid;
-          snake.dy = 0;
-
-          apple.x = getRandomInt(2, grid_block_w) * grid;
-          apple.y = getRandomInt(2, grid_block_h) * grid;
       }
 
       // game loop
@@ -145,8 +152,11 @@
         }
 
         // draw apple
-        context.fillStyle = 'red';
-        context.fillRect(apple.x, apple.y, grid-1, grid-1);
+        if(start)
+        {
+          context.fillStyle = 'red';
+          context.fillRect(apple.x, apple.y, grid-1, grid-1);
+        }
 
         // draw snake one cell at a time
         context.fillStyle = 'blue';
