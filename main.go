@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -35,8 +36,8 @@ type velocity struct {
 }
 
 type gameStates struct {
-	state
-	Ticks []velocity `json:"ticks"`
+	RecvState state      `json:"recvState"`
+	Ticks     []velocity `json:"ticks"`
 }
 
 // random position for fruit
@@ -50,10 +51,10 @@ func randFruitPosition(width, height int) fruit {
 func newGameHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed) //Response 405
 		return
 	} else {
-		w.WriteHeader(http.StatusOK) //200
+		w.WriteHeader(http.StatusOK) //Response 200
 		w.Header().Set("Content-Type", "application/text")
 
 		//send random fruit position as JSON marshalled data back to frontend
@@ -61,37 +62,61 @@ func newGameHandler(w http.ResponseWriter, r *http.Request) {
 		reqWidth, err := strconv.Atoi(r.URL.Query().Get("w"))
 		if err != nil {
 			// ... handle error
-			panic(err)
+			http.Error(w, err.Error(), http.StatusBadRequest) //Response 405, (4xx: Client Error - The request contains bad syntax or cannot be fulfilled)
+			return
 		}
 		reqHeight, err := strconv.Atoi(r.URL.Query().Get("h"))
 		if err != nil {
 			// ... handle error
-			panic(err)
+			http.Error(w, err.Error(), http.StatusBadRequest) //Response 405
+			return
 		}
 
 		//initialized state for new game
-		var s state = state{
-			GameID: "001",
-			Width:  reqWidth,
-			Height: reqHeight,
-			Score:  0,
-			Fruit:  randFruitPosition(reqWidth, reqHeight), //randomized fruit position
-			Snake: snake{
-				X:    0,
-				Y:    0,
-				VelX: 1,
-				VelY: 0,
-			},
+		state_marshalled, err := json.Marshal(
+			state{
+				GameID: "001",
+				Width:  reqWidth,
+				Height: reqHeight,
+				Score:  0,
+				Fruit:  randFruitPosition(reqWidth, reqHeight), //randomized fruit position
+				Snake: snake{
+					X:    0,
+					Y:    0,
+					VelX: 1,
+					VelY: 0,
+				},
+			})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError) //Response 500, (5xx: Server Error - The server failed to fulfill an apparently valid request)
+			return
 		}
-
-		state_marshalled, err := json.Marshal(s)
 		w.Write(state_marshalled)
-
+		return
 	}
 }
 
 func validateGameHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	} else {
+		w.WriteHeader(http.StatusOK) //Response 200
+		fmt.Printf("validate function called\n")
 
+		var gs gameStates
+
+		decoder := json.NewDecoder(r.Body)
+		fmt.Println("response Body:", r.Body)
+		err := decoder.Decode(&gs)
+
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Printf("%+v\n", gs.Ticks[0].VelX)
+
+	}
 }
 
 func main() {

@@ -48,8 +48,8 @@
       // the canvas width & height, snake x & y, and the apple x & y, all need to be a multiples of the grid size in order for collision detection to work
       // (e.g. 16 * 25 = 400)
       var grid = 16;
-      var grid_block_w = 400/grid; //400 = canvas width
-      var grid_block_h = 400/grid; //400 = canvas height
+      var grid_block_w = canvas.width/grid; //400 = canvas width
+      var grid_block_h = canvas.height/grid; //400 = canvas height
       var count = 0;
 
       var snake = {
@@ -67,21 +67,23 @@
         maxCells: 1
       };
 
+      var ticks_col = [] //2d array for ticks
+
       var apple = {
         x: 320,
         y: 320
       };
 
-    // get random whole numbers in a specific range
-    // @see https://stackoverflow.com/a/1527820/2124254
+      // get random whole numbers in a specific range
+      // @see https://stackoverflow.com/a/1527820/2124254
       function getRandomInt(min, max) {
         return Math.floor(Math.random() * (max - min)) + min;
       }
 
+      //start game button, sends GET request and should receive initializing JSON state data
       function startGame(){
         if(!start)
         {
-          start = true;
           fetch('/new?' + new URLSearchParams({
               w: canvas.width,
               h: canvas.height,
@@ -103,16 +105,50 @@
             if (json.fruit.y % grid == 0){apple.y = grid * 2;}
             else {apple.y = (json.fruit.y % grid) * grid}
 
+            start = true;
+
           })
           .catch(error => console.error(error));
         }
         
       }
 
+      //validate functions sends a POST request with the 
+      function validate() {
+          fetch ('/validate',
+          {
+            method: "POST",
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+
+            //make sure to serialize your JSON body
+            //pass game state and veloity ticks to the server for validation
+
+            body: JSON.stringify({
+                //gamestate
+                
+                RecvState: {
+                  GameId: "005",
+                  Width : canvas.width,
+                  Height: canvas.height,
+                  Score : 0,
+                  Fruit : {X : 300, Y :200},
+                  Snake : {X : 1, Y : 2, VelX : 98, VelY : 20}
+                },
+                ticks : ticks_col
+            })})
+
+          .then (response => console.log(response))
+          .catch (error => console.log(error))
+      }
+
       function resetGame() {
           start = false;
           snake.x = 0;
           snake.y = 0;
+          ticks.length = 0;
       }
 
       // game loop
@@ -131,8 +167,16 @@
         if(start) {
           snake.x += snake.dx;
           snake.y += snake.dy;
+
+          var vel = {
+            velX: snake.dx/grid,
+            velY: snake.dy/grid
+          }
+          //var tick = [snake.dx/grid, snake.dy/grid]
+          ticks_col.push(vel)
         }
 
+        // the bound checks should be validated server side
         // gameover when snake hits horizontal bounds
         if (snake.x < 0 || snake.x >= canvas.width) {
           resetGame();
@@ -165,11 +209,16 @@
           // drawing 1 px smaller than the grid creates a grid effect in the snake body so you can see how long it is
           context.fillRect(cell.x, cell.y, grid-1, grid-1);
 
+            // POST
+
+
             // snake ate apple
             if (cell.x === apple.x && cell.y === apple.y) {
               // canvas is 400x400 which is 25x25 grids
               apple.x = getRandomInt(0, grid_block_w) * grid;
               apple.y = getRandomInt(0, grid_block_h) * grid;
+
+              validate();
             }
 
           });
