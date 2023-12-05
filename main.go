@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type state struct {
@@ -57,7 +58,7 @@ func newGameHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK) //Response 200
 		w.Header().Set("Content-Type", "application/text")
 
-		//send random fruit position as JSON marshalled data back to frontend
+		//send random fruit position as JSON marshalled data back as a response
 		// string to int
 		reqWidth, err := strconv.Atoi(r.URL.Query().Get("w"))
 		if err != nil {
@@ -96,6 +97,73 @@ func newGameHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// validateState validates state for incorrect / missed data
+func validateState(gs *gameStates) (validationErrors []string) {
+	//validationErrors = append(validationErrors, "validation state errors: ")
+	if gs.RecvState.GameID == "" {
+		validationErrors = append(validationErrors, "GameID not specified.")
+	}
+
+	if gs.RecvState.Width <= 0 || gs.RecvState.Height <= 0 {
+		validationErrors = append(validationErrors, "Game board has incorrect size.")
+	}
+
+	if gs.RecvState.Fruit.X < 0 || gs.RecvState.Fruit.X >= gs.RecvState.Width ||
+		gs.RecvState.Fruit.Y < 0 || gs.RecvState.Fruit.Y >= gs.RecvState.Height ||
+		(gs.RecvState.Fruit.X == gs.RecvState.Snake.X && gs.RecvState.Fruit.Y == gs.RecvState.Snake.Y) {
+		validationErrors = append(validationErrors, "Fruit has incorrect position.")
+	}
+
+	if gs.RecvState.Snake.X < 0 || gs.RecvState.Snake.X >= gs.RecvState.Width ||
+		gs.RecvState.Snake.Y < 0 || gs.RecvState.Snake.Y >= gs.RecvState.Width {
+		validationErrors = append(validationErrors, "Snake has incorrect initial position ")
+	}
+	if gs.RecvState.Snake.VelX < -1 || gs.RecvState.Snake.VelX > 1 ||
+		gs.RecvState.Snake.VelY < -1 || gs.RecvState.Snake.VelY > 1 ||
+		gs.RecvState.Snake.VelX == gs.RecvState.Snake.VelY {
+		validationErrors = append(validationErrors, "Snake has incorrect initial velocity")
+	}
+	if gs.RecvState.Score < 0 {
+		validationErrors = append(validationErrors, "Score cannot be negative number.")
+	}
+	if len(gs.Ticks) == 0 {
+		validationErrors = append(validationErrors, "Ticks are not specified.")
+	}
+	return
+}
+
+func validateMoveSet(gs *gameStates) (validationErrors []string) {
+	prevX, prevY := gs.RecvState.Snake.X, gs.RecvState.Snake.Y
+	prevVelX, prevVelY := -2, -2 // init with non-possible values do indicate we have no prev velocity before 1st move
+	//fruitFound := false
+	//validationErrors = append(validationErrors, "validation move set errors: ")
+	grid := 16
+	for _, tick := range gs.Ticks {
+		currX, currY := prevX+tick.VelX*grid, prevY-tick.VelY*grid // current position
+
+		// if currX == gs.RecvState.Fruit.X && currY == gs.RecvState.Fruit.Y {
+		// 	//fruitFound = true
+		// }
+		// check if snake out of game board borders
+		if currX < 0 || currX >= gs.RecvState.Width || currY < 0 || currY >= gs.RecvState.Height {
+			tempString := "Snake went out of bounds. currX: " + strconv.Itoa(currX) + ", currY: " + strconv.Itoa(currY)
+			validationErrors = append(validationErrors, tempString)
+		}
+
+		// check if snake made an invalid move (e.g., immediate 180-degree turn not allowed)
+		if (-prevVelX == tick.VelX && tick.VelX != 0) ||
+			(-prevVelY == tick.VelY && tick.VelY != 0) ||
+			(tick.VelX == tick.VelY) {
+			validationErrors = append(validationErrors, "Snake made an invalid move.")
+		}
+
+		// update prev before the next iteration
+		prevX, prevY = currX, currY
+		prevVelX, prevVelY = tick.VelX, tick.VelY
+	}
+	return
+}
+
 func validateGameHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -114,6 +182,30 @@ func validateGameHandler(w http.ResponseWriter, r *http.Request) {
 			panic(err)
 		}
 
+		valid := false
+		validationErrors := validateState(&gs) //validate current state
+		if len(validationErrors) > 0 {
+			http.Error(w, strings.Join(validationErrors, "\n"), http.StatusBadRequest) //error 400
+			valid = false
+		} else {
+			valid = true
+		}
+
+		validationErrors = validateMoveSet(&gs) //validate the snake's moveset
+		if len(validationErrors) > 0 {
+			http.Error(w, strings.Join(validationErrors, "\n"), http.StatusTeapot) //error 400
+			valid = false
+		} else {
+			valid = true
+		}
+
+		if valid {
+			//increment game score, generate new position for the fruit, send new game state
+
+		}
+		//validateState(&gs)
+		//fmt.Printf("%s\n", validateState(&gs))
+		//fmt.Printf("%s\n", validateMoveSet(&gs))
 		fmt.Printf("%+v\n", gs.Ticks[0].VelX)
 
 	}

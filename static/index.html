@@ -48,8 +48,8 @@
       // the canvas width & height, snake x & y, and the apple x & y, all need to be a multiples of the grid size in order for collision detection to work
       // (e.g. 16 * 25 = 400)
       var grid = 16;
-      var grid_block_w = canvas.width/grid; //400 = canvas width
-      var grid_block_h = canvas.height/grid; //400 = canvas height
+      var grid_block_w = canvas.width/grid;
+      var grid_block_h = canvas.height/grid;
       var count = 0;
 
       var snake = {
@@ -74,6 +74,8 @@
         y: 320
       };
 
+      var gameID = "unknown";
+
       // get random whole numbers in a specific range
       // @see https://stackoverflow.com/a/1527820/2124254
       function getRandomInt(min, max) {
@@ -94,6 +96,7 @@
 
             //initializing the game with the server sent data
             //snake
+            gameID = json.gameId
             snake.X = json.snake.x
             snake.Y = json.snake.y
             snake.dx = grid * json.snake.velX
@@ -124,18 +127,18 @@
             },
 
             //make sure to serialize your JSON body
-            //pass game state and veloity ticks to the server for validation
+            //pass game state and velocity ticks to the server for validation
 
             body: JSON.stringify({
                 //gamestate
                 
                 RecvState: {
-                  GameId: "005",
+                  GameId: gameID,
                   Width : canvas.width,
                   Height: canvas.height,
                   Score : 0,
-                  Fruit : {X : 300, Y :200},
-                  Snake : {X : 1, Y : 2, VelX : 98, VelY : 20}
+                  Fruit : {X : apple.x, Y :apple.y},
+                  Snake : {X : snake.x, Y : snake.y, VelX : snake.dx/grid, VelY : snake.dy/grid}
                 },
                 ticks : ticks_col
             })})
@@ -148,7 +151,7 @@
           start = false;
           snake.x = 0;
           snake.y = 0;
-          ticks.length = 0;
+          ticks_col.length = 0;
       }
 
       // game loop
@@ -156,7 +159,7 @@
         requestAnimationFrame(loop);
 
         // slow game loop to 15 fps instead of 60 (60/15 = 4)
-        if (++count < 4) {
+        if (++count < 60/10) {
           return;
         }
 
@@ -168,23 +171,23 @@
           snake.x += snake.dx;
           snake.y += snake.dy;
 
+          // wrap snake position horizontally on edge of screen
+          if (snake.x < 0) { snake.x = canvas.width - grid; }
+          else if (snake.x >= canvas.width) { snake.x = 0; }
+
+          // wrap snake position vertically on edge of screen
+          if (snake.y < 0) { snake.y = canvas.height - grid; }
+          else if (snake.y >= canvas.height) { snake.y = 0; }
+
           var vel = {
             velX: snake.dx/grid,
             velY: snake.dy/grid
           }
-          //var tick = [snake.dx/grid, snake.dy/grid]
           ticks_col.push(vel)
-        }
 
-        // the bound checks should be validated server side
-        // gameover when snake hits horizontal bounds
-        if (snake.x < 0 || snake.x >= canvas.width) {
-          resetGame();
-        }
-
-        // gameover when snake hits vertical bounds
-        if (snake.y < 0 || snake.y >= canvas.height) {
-          resetGame();
+          //draw apple
+          context.fillStyle = 'red';
+          context.fillRect(apple.x, apple.y, grid-1, grid-1);
         }
 
         // keep track of where snake has been. front of the array is always the head
@@ -195,13 +198,6 @@
           snake.cells.pop();
         }
 
-        // draw apple
-        if(start)
-        {
-          context.fillStyle = 'red';
-          context.fillRect(apple.x, apple.y, grid-1, grid-1);
-        }
-
         // draw snake one cell at a time
         context.fillStyle = 'blue';
         snake.cells.forEach(function(cell, index) {
@@ -209,9 +205,7 @@
           // drawing 1 px smaller than the grid creates a grid effect in the snake body so you can see how long it is
           context.fillRect(cell.x, cell.y, grid-1, grid-1);
 
-            // POST
-
-
+            // POST request here
             // snake ate apple
             if (cell.x === apple.x && cell.y === apple.y) {
               // canvas is 400x400 which is 25x25 grids
@@ -219,37 +213,19 @@
               apple.y = getRandomInt(0, grid_block_h) * grid;
 
               validate();
+              ticks_col.length = 0;
             }
 
           });
       }
 
-    // listen to keyboard events to move the snake
+      // listen to keyboard events to move the snake
       document.addEventListener('keydown', function(e) {
-        // prevent snake from backtracking on itself by checking that it's
-        // not already moving on the same axis (pressing left while moving
-        // left won't do anything, and pressing right while moving left
-        // shouldn't let you collide with your own body)
-
-        // left arrow key
-        if (e.which === 37 && snake.dx === 0) {
-          snake.dx = -grid;
-          snake.dy = 0;
-        }
-        // up arrow key
-        else if (e.which === 38 && snake.dy === 0) {
-          snake.dy = -grid;
-          snake.dx = 0;
-        }
-        // right arrow key
-        else if (e.which === 39 && snake.dx === 0) {
-          snake.dx = grid;
-          snake.dy = 0;
-        }
-        // down arrow key
-        else if (e.which === 40 && snake.dy === 0) {
-          snake.dy = grid;
-          snake.dx = 0;
+        switch (e.which) {
+          case 37 : { snake.dx = -grid; snake.dy = 0;     break; }
+          case 38 : { snake.dx = 0;     snake.dy = -grid; break; }
+          case 39 : { snake.dx = grid;  snake.dy = 0;     break; }
+          case 40 : { snake.dx = 0;     snake.dy = grid;  break; }
         }
       });
 
