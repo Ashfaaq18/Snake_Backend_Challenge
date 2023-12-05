@@ -44,8 +44,8 @@ type gameStates struct {
 // random position for fruit
 func randFruitPosition(width, height int) fruit {
 	return fruit{
-		X: rand.Intn(width-1) + 1,
-		Y: rand.Intn(height-1) + 1,
+		X: (rand.Intn(width-1) + 1) / 16, //1-96
+		Y: (rand.Intn(height-1) + 1) / 16,
 	}
 }
 
@@ -138,9 +138,9 @@ func validateMoveSet(gs *gameStates) (validationErrors []string) {
 	//fruitFound := false
 	//validationErrors = append(validationErrors, "validation move set errors: ")
 	grid := 16
-	for _, tick := range gs.Ticks {
-		currX, currY := prevX+tick.VelX*grid, prevY-tick.VelY*grid // current position
-
+	for i := len(gs.Ticks) - 1; i >= 0; i-- {
+		currX, currY := prevX-(gs.Ticks[i].VelX*grid), prevY-(gs.Ticks[i].VelY*grid) // current position
+		fmt.Printf("currX: %d , currY: %d | prevX: %d , prevY: %d | tick.VelX: %d , tick.VelY: %d \n", currX, currY, prevX, prevY, gs.Ticks[i].VelX, gs.Ticks[i].VelY)
 		// if currX == gs.RecvState.Fruit.X && currY == gs.RecvState.Fruit.Y {
 		// 	//fruitFound = true
 		// }
@@ -151,16 +151,17 @@ func validateMoveSet(gs *gameStates) (validationErrors []string) {
 		}
 
 		// check if snake made an invalid move (e.g., immediate 180-degree turn not allowed)
-		if (-prevVelX == tick.VelX && tick.VelX != 0) ||
-			(-prevVelY == tick.VelY && tick.VelY != 0) ||
-			(tick.VelX == tick.VelY) {
+		if (-prevVelX == gs.Ticks[i].VelX && gs.Ticks[i].VelX != 0) ||
+			(-prevVelY == gs.Ticks[i].VelY && gs.Ticks[i].VelY != 0) ||
+			(gs.Ticks[i].VelX == gs.Ticks[i].VelY) {
 			validationErrors = append(validationErrors, "Snake made an invalid move.")
 		}
 
 		// update prev before the next iteration
 		prevX, prevY = currX, currY
-		prevVelX, prevVelY = tick.VelX, tick.VelY
+		prevVelX, prevVelY = gs.Ticks[i].VelX, gs.Ticks[i].VelY
 	}
+
 	return
 }
 

@@ -36,7 +36,7 @@
         <button type="button" onclick="startGame()">Start Game</button> 
       </div>
       <div class="col-2">
-        <canvas width="400" height="400" id="game"></canvas>
+        <canvas width="96" height="96" id="game"></canvas>
       </div>
     </div>
 
@@ -131,7 +131,6 @@
 
             body: JSON.stringify({
                 //gamestate
-                
                 RecvState: {
                   GameId: gameID,
                   Width : canvas.width,
@@ -159,7 +158,7 @@
         requestAnimationFrame(loop);
 
         // slow game loop to 15 fps instead of 60 (60/15 = 4)
-        if (++count < 60/10) {
+        if (++count < 60/5) {
           return;
         }
 
