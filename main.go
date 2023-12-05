@@ -109,8 +109,7 @@ func validateState(gs *gameStates) (validationErrors []string) {
 	}
 
 	if gs.RecvState.Fruit.X < 0 || gs.RecvState.Fruit.X >= gs.RecvState.Width ||
-		gs.RecvState.Fruit.Y < 0 || gs.RecvState.Fruit.Y >= gs.RecvState.Height ||
-		(gs.RecvState.Fruit.X == gs.RecvState.Snake.X && gs.RecvState.Fruit.Y == gs.RecvState.Snake.Y) {
+		gs.RecvState.Fruit.Y < 0 || gs.RecvState.Fruit.Y >= gs.RecvState.Height {
 		validationErrors = append(validationErrors, "Fruit has incorrect position.")
 	}
 
@@ -135,15 +134,12 @@ func validateState(gs *gameStates) (validationErrors []string) {
 func validateMoveSet(gs *gameStates) (validationErrors []string) {
 	prevX, prevY := gs.RecvState.Snake.X, gs.RecvState.Snake.Y
 	prevVelX, prevVelY := -2, -2 // init with non-possible values do indicate we have no prev velocity before 1st move
-	//fruitFound := false
-	//validationErrors = append(validationErrors, "validation move set errors: ")
+
 	grid := 16
 	for i := len(gs.Ticks) - 1; i >= 0; i-- {
 		currX, currY := prevX-(gs.Ticks[i].VelX*grid), prevY-(gs.Ticks[i].VelY*grid) // current position
 		fmt.Printf("currX: %d , currY: %d | prevX: %d , prevY: %d | tick.VelX: %d , tick.VelY: %d \n", currX, currY, prevX, prevY, gs.Ticks[i].VelX, gs.Ticks[i].VelY)
-		// if currX == gs.RecvState.Fruit.X && currY == gs.RecvState.Fruit.Y {
-		// 	//fruitFound = true
-		// }
+
 		// check if snake out of game board borders
 		if currX < 0 || currX >= gs.RecvState.Width || currY < 0 || currY >= gs.RecvState.Height {
 			tempString := "Snake went out of bounds. currX: " + strconv.Itoa(currX) + ", currY: " + strconv.Itoa(currY)
@@ -203,10 +199,30 @@ func validateGameHandler(w http.ResponseWriter, r *http.Request) {
 		if valid {
 			//increment game score, generate new position for the fruit, send new game state
 
+			state_marshalled, err := json.Marshal(
+				gameStates{
+					RecvState: state{
+						GameID: gs.RecvState.GameID,
+						Width:  gs.RecvState.Width,
+						Height: gs.RecvState.Height,
+						Score:  gs.RecvState.Score + 1,
+						Fruit:  randFruitPosition(gs.RecvState.Width, gs.RecvState.Height), //randomized fruit position
+						Snake: snake{
+							X:    gs.RecvState.Snake.X,
+							Y:    gs.RecvState.Snake.X,
+							VelX: gs.RecvState.Snake.VelX,
+							VelY: gs.RecvState.Snake.VelY,
+						},
+					},
+					Ticks: []velocity{},
+				})
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError) //Response 500, (5xx: Server Error - The server failed to fulfill an apparently valid request)
+				return
+			}
+			w.Write(state_marshalled)
 		}
-		//validateState(&gs)
-		//fmt.Printf("%s\n", validateState(&gs))
-		//fmt.Printf("%s\n", validateMoveSet(&gs))
+
 		fmt.Printf("%+v\n", gs.Ticks[0].VelX)
 
 	}

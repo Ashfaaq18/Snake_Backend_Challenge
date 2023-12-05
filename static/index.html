@@ -34,16 +34,17 @@
     <div class="container">
       <div class="col-1">
         <button type="button" onclick="startGame()">Start Game</button> 
+        <h4 style="color: aliceblue;">Score: <span id="score">0</span></h4>
       </div>
       <div class="col-2">
-        <canvas width="96" height="96" id="game"></canvas>
+        <canvas width="160" height="160" id="game"></canvas>
       </div>
     </div>
 
     <script>
       var canvas = document.getElementById('game');
       var context = canvas.getContext('2d');
-
+      var score = 0;
       var start = false;
       // the canvas width & height, snake x & y, and the apple x & y, all need to be a multiples of the grid size in order for collision detection to work
       // (e.g. 16 * 25 = 400)
@@ -118,6 +119,7 @@
 
       //validate functions sends a POST request with the 
       function validate() {
+          score = parseInt(document.getElementById('score').innerHTML);
           fetch ('/validate',
           {
             method: "POST",
@@ -135,14 +137,24 @@
                   GameId: gameID,
                   Width : canvas.width,
                   Height: canvas.height,
-                  Score : 0,
+                  Score : parseInt(document.getElementById('score').innerHTML),
                   Fruit : {X : apple.x, Y :apple.y},
                   Snake : {X : snake.x, Y : snake.y, VelX : snake.dx/grid, VelY : snake.dy/grid}
                 },
                 ticks : ticks_col
             })})
+          .then(response => response.json())
+          .then(json => {
 
-          .then (response => console.log(response))
+            if (json.recvState.fruit.x % grid == 0){apple.x = grid * 2;}
+            else {apple.x = (json.recvState.fruit.x % grid) * grid }
+
+            if (json.recvState.fruit.y % grid == 0){apple.y = grid * 2;}
+            else {apple.y = (json.recvState.fruit.y % grid) * grid}
+
+            document.getElementById('score').innerHTML = json.recvState.score;
+
+          })
           .catch (error => console.log(error))
       }
 
@@ -208,9 +220,6 @@
             // snake ate apple
             if (cell.x === apple.x && cell.y === apple.y) {
               // canvas is 400x400 which is 25x25 grids
-              apple.x = getRandomInt(0, grid_block_w) * grid;
-              apple.y = getRandomInt(0, grid_block_h) * grid;
-
               validate();
               ticks_col.length = 0;
             }
