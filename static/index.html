@@ -158,13 +158,6 @@
           .catch (error => console.log(error))
       }
 
-      function resetGame() {
-          start = false;
-          snake.x = 0;
-          snake.y = 0;
-          ticks_col.length = 0;
-      }
-
       // game loop
       function loop() {
         requestAnimationFrame(loop);

@@ -44,7 +44,7 @@ type gameStates struct {
 // random position for fruit
 func randFruitPosition(width, height int) fruit {
 	return fruit{
-		X: (rand.Intn(width-1) + 1) / 16, //1-96
+		X: (rand.Intn(width-1) + 1) / 16,
 		Y: (rand.Intn(height-1) + 1) / 16,
 	}
 }
@@ -55,7 +55,7 @@ func newGameHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed) //Response 405
 		return
 	} else {
-		w.WriteHeader(http.StatusOK) //Response 200
+
 		w.Header().Set("Content-Type", "application/text")
 
 		//send random fruit position as JSON marshalled data back as a response
@@ -92,6 +92,7 @@ func newGameHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError) //Response 500, (5xx: Server Error - The server failed to fulfill an apparently valid request)
 			return
 		}
+		w.WriteHeader(http.StatusOK) //Response 200	,  JSON marshalled state, with randomly generated fruit position.
 		w.Write(state_marshalled)
 		return
 	}
@@ -166,7 +167,7 @@ func validateGameHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	} else {
-		w.WriteHeader(http.StatusOK) //Response 200
+
 		fmt.Printf("validate function called\n")
 
 		var gs gameStates
@@ -182,7 +183,7 @@ func validateGameHandler(w http.ResponseWriter, r *http.Request) {
 		valid := false
 		validationErrors := validateState(&gs) //validate current state
 		if len(validationErrors) > 0 {
-			http.Error(w, strings.Join(validationErrors, "\n"), http.StatusBadRequest) //error 400
+			http.Error(w, strings.Join(validationErrors, "\n"), http.StatusBadRequest) //error 400, Invalid request.
 			valid = false
 		} else {
 			valid = true
@@ -190,7 +191,7 @@ func validateGameHandler(w http.ResponseWriter, r *http.Request) {
 
 		validationErrors = validateMoveSet(&gs) //validate the snake's moveset
 		if len(validationErrors) > 0 {
-			http.Error(w, strings.Join(validationErrors, "\n"), http.StatusTeapot) //error 400
+			http.Error(w, strings.Join(validationErrors, "\n"), http.StatusTeapot) //error 418, Game is over, snake went out of bounds or made an invalid move.
 			valid = false
 		} else {
 			valid = true
@@ -220,6 +221,7 @@ func validateGameHandler(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusInternalServerError) //Response 500, (5xx: Server Error - The server failed to fulfill an apparently valid request)
 				return
 			}
+			w.WriteHeader(http.StatusOK) //Response 200, Valid state & ticks.JSON marshalled state with new randomly generated fruit position and a score incremented by 1.
 			w.Write(state_marshalled)
 		}
 
